@@ -33,7 +33,7 @@ running = True
 left_pwm, right_pwm = 0, 0
 left_count, right_count = 0, 0
 prev_left_state, prev_right_state = None, None
-use_ramping = True
+use_ramping = False
 RAMP_RATE = 250  # PWM units per second (adjust this value to tune ramp speed)
 MIN_RAMP_THRESHOLD = 15  # Only ramp if change is greater than this
 MIN_PWM_THRESHOLD = 15
@@ -391,7 +391,7 @@ def wheel_server():
                     if not data or len(data) != 8:
                         print("Wheel client sending speed error")
                         break
-                    print("received speed command!!!!!!!!!!!!!!!!!!!!!!!!")
+
                     # Unpack speed values and convert to PWM
                     left_speed, right_speed = struct.unpack("!ff", data)
                     # print(f"Received wheel: left_speed={left_speed:.4f}, right_speed={right_speed:.4f}")
