@@ -391,7 +391,7 @@ def wheel_server():
                     if not data or len(data) != 8:
                         print("Wheel client sending speed error")
                         break
-                    
+                    print("received speed command!!!!!!!!!!!!!!!!!!!!!!!!")
                     # Unpack speed values and convert to PWM
                     left_speed, right_speed = struct.unpack("!ff", data)
                     # print(f"Received wheel: left_speed={left_speed:.4f}, right_speed={right_speed:.4f}")
