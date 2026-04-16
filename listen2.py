@@ -183,7 +183,7 @@ def pid_control():
             target_left_pwm = left_pwm
             target_right_pwm = right_pwm
         else:
-            if current_movement == 'forward' or current_movement == 'backward' or current_movement == 'turn':
+            if current_movement == 'forward' or current_movement == 'backward':
                
                 error = left_count - right_count
                 proportional = KP * error
