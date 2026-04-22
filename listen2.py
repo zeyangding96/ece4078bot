@@ -397,6 +397,8 @@ def wheel_server():
                         
                     move_mode = struct.unpack("!B", cmd_type_data)[0]
                     
+                    print(move_mode)
+                    
                     if move_mode == 0:
                         # Receive speed data (4 byte each)
                         data = client_socket.recv(8)
