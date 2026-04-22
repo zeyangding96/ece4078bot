@@ -154,8 +154,11 @@ def apply_min_threshold(pwm_value, min_threshold):
         return pwm_value
 
 def pid_control():
-    # This function sets the motor pwm using pid control with ramping logic
-    # left/right pwm -> target left/right pwm -> ramp left/right pwm -> final left/right pwm
+    '''
+    This function sets the motor pwm using pid control with ramping logic
+    pid only applies for forward and backward movement, not turning
+    Variable change in this function: left/right pwm -> target left/right pwm -> ramp left/right pwm -> final left/right pwm
+    '''
     global left_pwm, right_pwm, left_count, right_count, use_PID, KP, KI, KD, prev_movement, current_movement
     
     integral = 0
@@ -271,7 +274,7 @@ def pid_control():
         set_motors(final_left_pwm, final_right_pwm)
         
         if ramp_left_pwm != 0: # print pwm values for debugging purpose
-            print(f"(Left PWM, Right PWM)=({ramp_left_pwm:.2f},{ramp_right_pwm:.2f}), (Left Enc, Right Enc)=({left_count}, {right_count})")
+            print(f"L/R PWM: ({ramp_left_pwm:.2f},{ramp_right_pwm:.2f}), L/R Enc: ({left_count}, {right_count})")
         
         time.sleep(0.01)
 
@@ -386,20 +389,84 @@ def wheel_server():
             
             while running:
                 try:
-                    # Receive speed (4 bytes for each value)
-                    data = client_socket.recv(8)
-                    if not data or len(data) != 8:
-                        print("Wheel client sending speed error")
+                    # Receive move_mode (1 byte)
+                    move_mode = client_socket.recv(1)
+                    if not move_mode or len(move_mode) != 1:
+                        print("Wheel client sending error")
                         break
-
-                    # Unpack speed values and convert to PWM
-                    left_speed, right_speed = struct.unpack("!ff", data)
-                    # print(f"Received wheel: left_speed={left_speed:.4f}, right_speed={right_speed:.4f}")
-                    left_pwm, right_pwm = left_speed*100, right_speed*100
+                        
+                    move_mode = struct.unpack("!B", cmd_type_data)[0]
                     
-                    # Send encoder counts back
-                    response = struct.pack("!ii", left_count, right_count)
-                    client_socket.sendall(response)
+                    if move_mode == 0:
+                        # Receive speed data (4 byte each)
+                        data = client_socket.recv(8)
+                        if not data or len(data) != 8:
+                            print("Wheel client sending error")
+                            break
+                        
+                        # Unpack speed values and convert to PWM
+                        left_speed, right_speed = struct.unpack("!ff", data)
+                        print(f"Received Mode 0")
+                        print(f"L/R speed: {left_speed:.4f}, {right_speed:.4f}")
+                        left_pwm, right_pwm = left_speed*100, right_speed*100
+                        
+                        # Send encoder counts back as acknowledgement
+                        response = struct.pack("!ii", left_count, right_count)
+                        client_socket.sendall(response)
+                    
+                    elif move_mode == 1:
+                        # Receive speed and duration (4 byte each)
+                        data = client_socket.recv(12)
+                        if not data or len(data) != 12:
+                            print("Wheel client sending error")
+                            break
+                        
+                        # Unpack speed values and convert to PWM
+                        left_speed, right_speed, duration = struct.unpack("!fff", data)
+                        print(f"Received Mode 1")
+                        print(f"L/R speed: {left_speed:.4f}, {right_speed:.4f}, Duration: {duration:.2f}s")
+                        left_pwm, right_pwm = left_speed*100, right_speed*100
+                        
+                        # Monitor movement duration
+                        autonomous_start_time = monotonic()
+                        while running:
+                            elapsed_time = monotonic() - autonomous_start_time
+                            if elapsed_time >= duration:
+                                # Time expired, stop movement
+                                left_pwm = 0
+                                right_pwm = 0
+                                print(f"Timed movement completed after {elapsed_time:.2f}s")
+                                break
+                        
+                        # Send encoder counts back as acknowledgement
+                        response = struct.pack("!ii", left_count, right_count)
+                        client_socket.sendall(response)
+                    
+                    elif move_mode == 2:
+                        # Receive speed and encoder count (4 byte each)
+                        data = client_socket.recv(16)
+                        if not data or len(data) != 16:
+                            print("Wheel client sending error")
+                            break
+                        
+                        # Unpack speed values and convert to PWM
+                        left_speed, right_speed, target_left_enc, target_right_enc = struct.unpack("!ffii", data)
+                        print(f"Received Mode 2")
+                        print(f"L/R speed: {left_speed:.4f}, {right_speed:.4f}, L/R enc: {target_left_enc}, {target_right_enc}")
+                        left_pwm, right_pwm = left_speed*100, right_speed*100
+                        
+                        # Monitor movement duration
+                        while running:
+                            if left_count >= target_left_enc and right_count >= target_right_enc:
+                                # Time expired, stop movement
+                                left_pwm = 0
+                                right_pwm = 0
+                                print(f"Encoder-based movement completed at L/R enc: {target_left_enc}, {target_right_enc")
+                                break
+                        
+                        # Send encoder counts back as acknowledgement
+                        response = struct.pack("!ii", left_count, right_count)
+                        client_socket.sendall(response)
                     
                 except Exception as e:
                     print(f"Wheel client disconnected")
