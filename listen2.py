@@ -461,7 +461,7 @@ def wheel_server():
                                 # Time expired, stop movement
                                 left_pwm = 0
                                 right_pwm = 0
-                                print(f"Encoder-based movement completed at L/R enc: {target_left_enc}, {target_right_enc")
+                                print(f"Encoder-based movement completed at L/R enc: {target_left_enc}, {target_right_enc}")
                                 break
                         
                         # Send encoder counts back as acknowledgement
