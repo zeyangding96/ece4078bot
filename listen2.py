@@ -390,14 +390,16 @@ def wheel_server():
             while running:
                 try:
                     # Receive move_mode (1 byte)
+                    print('hello')
                     move_mode = client_socket.recv(1)
+                    print('bye')
                     if not move_mode or len(move_mode) != 1:
                         print("Wheel client sending error")
                         break
                         
                     move_mode = struct.unpack("!B", cmd_type_data)[0]
                     
-                    print(move_mode)
+                    
                     
                     if move_mode == 0:
                         # Receive speed data (4 byte each)
