@@ -201,13 +201,13 @@ def pid_control():
                 if current_movement == 'forward':
                     target_left_pwm = left_pwm - correction
                     target_right_pwm = right_pwm + correction 
-                elif: current_movement == 'backward':
+                elif current_movement == 'backward':
                     target_left_pwm = left_pwm + correction
                     target_right_pwm = right_pwm - correction
-                elif: current_movement == 'clockwise':
+                elif current_movement == 'clockwise':
                     target_left_pwm = left_pwm - correction
                     target_right_pwm = right_pwm - correction
-                elif: current_movement == 'anticlockwise':
+                elif current_movement == 'anticlockwise':
                     target_left_pwm = left_pwm + correction
                     target_right_pwm = right_pwm + correction
 
