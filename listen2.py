@@ -541,12 +541,12 @@ def main():
         # Start camera streaming thread
         camera_capture_thread = threading.Thread(target=camera_capture_thread)
         camera_capture_thread.daemon = True
-        camera_capture_thread.start
+        camera_capture_thread.start()
         
         # Start camera streaming thread
         camera_thread = threading.Thread(target=camera_stream_server)
         camera_thread.daemon = True
-        camera_thread.start
+        camera_thread.start()
         
         # Start PID configuration server thread
         pid_config_thread = threading.Thread(target=pid_config_server)
