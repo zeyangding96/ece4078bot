@@ -309,9 +309,9 @@ def camera_stream_server():
             while running:
             
                 # Wait for client to request a frame ("ready" signal = 1 byte)
-                ready = client_socket.recv(1)
-                if not ready:
-                    break
+                #ready = client_socket.recv(1)
+                #if not ready:
+                #    break
                 
                 # Capture frame and convert to bytes
                 stream = io.BytesIO()
