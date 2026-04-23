@@ -214,9 +214,6 @@ def pid_control():
                     target_left_pwm = left_pwm + correction
                     target_right_pwm = right_pwm + correction
                     print('b', correction, target_left_pwm, target_right_pwm)
-
-                target_left_pwm = left_pwm - correction
-                target_right_pwm = right_pwm + correction               
             else:
                 # Reset when stopped or turning
                 integral = 0
