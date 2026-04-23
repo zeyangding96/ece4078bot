@@ -186,7 +186,7 @@ def pid_control():
             target_left_pwm = left_pwm
             target_right_pwm = right_pwm
         else:
-            if current_movement != 'stop': #current_movement == 'forward' or current_movement == 'backward':
+            if current_movement == 'forward' or current_movement == 'backward':
                 error = left_count - right_count
                 proportional = KP * error
                 integral += KI * error * dt
@@ -205,7 +205,7 @@ def pid_control():
                 # Reset when stopped or turning
                 integral = 0
                 last_error = 0
-                reset_encoder()
+                if current_movement == 'stop': reset_encoder() # turning still need counts for count-based movement
                 target_left_pwm = left_pwm
                 target_right_pwm = right_pwm
         
