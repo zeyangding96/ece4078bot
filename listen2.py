@@ -289,7 +289,7 @@ def pid_control():
         
         time.sleep(0.01)
         
-def camera_capture_thread():
+def camera_capture():
     """Continuously capture frames (runs in background)"""
     picam2 = Picamera2()
     camera_config = picam2.create_preview_configuration(lores={"size": (640,480)})
@@ -539,7 +539,7 @@ def main():
         pid_thread.start()
         
         # Start camera streaming thread
-        camera_capture_thread = threading.Thread(target=camera_capture_thread)
+        camera_capture_thread = threading.Thread(target=camera_capture)
         camera_capture_thread.daemon = True
         camera_capture_thread.start()
         
