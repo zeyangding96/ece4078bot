@@ -34,7 +34,7 @@ running = True
 left_pwm, right_pwm = 0, 0
 left_count, right_count = 0, 0
 prev_left_state, prev_right_state = None, None
-use_ramping = False
+use_ramping = args.disable_ramping
 RAMP_RATE = 250  # PWM units per second (adjust this value to tune ramp speed)
 MIN_RAMP_THRESHOLD = 15  # Only ramp if change is greater than this
 MIN_PWM_THRESHOLD = 15
@@ -524,5 +524,6 @@ def main():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', action='store_true') # Defaults to False
+    parser.add_argument('--disable_ramping', action='store_false') # Defaults to True
     args = parser.parse_args()
     main()
