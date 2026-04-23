@@ -39,6 +39,9 @@ RAMP_RATE = 250  # PWM units per second (adjust this value to tune ramp speed)
 MIN_RAMP_THRESHOLD = 15  # Only ramp if change is greater than this
 MIN_PWM_THRESHOLD = 15
 current_movement, prev_movement = 'stop', 'stop'
+# Global frame buffer
+latest_frame_data = None
+frame_lock = threading.Lock()
 
 def setup_gpio():
     GPIO.setmode(GPIO.BCM)
@@ -285,14 +288,35 @@ def pid_control():
             print(f"L/R PWM: ({ramp_left_pwm:.2f},{ramp_right_pwm:.2f}), L/R Enc: ({left_count}, {right_count})")
         
         time.sleep(0.01)
-
-
-def camera_stream_server():
-    # Initialize camera
+        
+def camera_capture_thread():
+    """Continuously capture frames (runs in background)"""
     picam2 = Picamera2()
     camera_config = picam2.create_preview_configuration(lores={"size": (640,480)})
     picam2.configure(camera_config)
     picam2.start()
+    
+    global latest_frame_data
+    while running:
+        stream = io.BytesIO()
+        picam2.capture_file(stream, format='jpeg')
+        stream.seek(0)
+        jpeg_data = stream.getvalue()
+        
+        with frame_lock:
+            latest_frame_data = jpeg_data
+        
+        time.sleep(0.01)  # ~100fps capture rate
+    
+    picam2.stop()
+
+
+def camera_stream_server():
+    # Initialize camera
+    #picam2 = Picamera2()
+    #camera_config = picam2.create_preview_configuration(lores={"size": (640,480)})
+    #picam2.configure(camera_config)
+    #picam2.start()
     
     # Create socket for streaming
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -314,12 +338,19 @@ def camera_stream_server():
                     break
                 
                 # Capture frame and convert to bytes
-                stream = io.BytesIO()
-                picam2.capture_file(stream, format='jpeg')
-                stream.seek(0)
-                jpeg_data = stream.getvalue()
-                jpeg_size = len(jpeg_data)
+                #stream = io.BytesIO()
+                #picam2.capture_file(stream, format='jpeg')
+                #stream.seek(0)
+                #jpeg_data = stream.getvalue()
+                #jpeg_size = len(jpeg_data)
                 
+                # Send latest captured frame
+                with frame_lock:
+                    if latest_frame_data:
+                        jpeg_data = latest_frame_data
+                    else:
+                        continue
+                jpeg_size = len(jpeg_data)
                 try:
                     client_socket.sendall(struct.pack("!I", jpeg_size))
                     client_socket.sendall(jpeg_data)
@@ -508,9 +539,14 @@ def main():
         pid_thread.start()
         
         # Start camera streaming thread
+        camera_capture_thread = threading.Thread(target=camera_capture_thread)
+        camera_capture_thread.daemon = True
+        camera_capture_thread.start
+        
+        # Start camera streaming thread
         camera_thread = threading.Thread(target=camera_stream_server)
         camera_thread.daemon = True
-        camera_thread.start()
+        camera_thread.start
         
         # Start PID configuration server thread
         pid_config_thread = threading.Thread(target=pid_config_server)
