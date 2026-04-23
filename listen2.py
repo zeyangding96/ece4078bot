@@ -181,13 +181,14 @@ def pid_control():
         if (left_pwm > 0 and right_pwm > 0): current_movement = 'forward'
         elif (left_pwm < 0 and right_pwm < 0): current_movement = 'backward'
         elif (left_pwm == 0 and right_pwm == 0): current_movement = 'stop'
-        else: current_movement = 'turn'
+        elif (left_pwm > 0 and right_pwm < 0): current_movement = 'clockwise'
+        elss: current_movement = 'anticlockwise'
         
         if not use_PID:
             target_left_pwm = left_pwm
             target_right_pwm = right_pwm
         else:
-            if current_movement == 'forward' or current_movement == 'backward':
+            if current_movement != 'stop':
                 error = left_count - right_count
                 proportional = KP * error
                 integral += KI * error * dt
@@ -197,8 +198,18 @@ def pid_control():
                 correction = max(-MAX_CORRECTION, min(correction, MAX_CORRECTION))
                 last_error = error
                             
-                if current_movement == 'backward':
-                    correction = -correction
+                if current_movement == 'forward':
+                    target_left_pwm = left_pwm - correction
+                    target_right_pwm = right_pwm + correction 
+                elif: current_movement == 'backward':
+                    target_left_pwm = left_pwm + correction
+                    target_right_pwm = right_pwm - correction
+                elif: current_movement == 'clockwise':
+                    target_left_pwm = left_pwm - correction
+                    target_right_pwm = right_pwm - correction
+                elif: current_movement == 'anticlockwise':
+                    target_left_pwm = left_pwm + correction
+                    target_right_pwm = right_pwm + correction
 
                 target_left_pwm = left_pwm - correction
                 target_right_pwm = right_pwm + correction               
@@ -206,7 +217,7 @@ def pid_control():
                 # Reset when stopped or turning
                 integral = 0
                 last_error = 0
-                if current_movement == 'stop': reset_encoder() # turning still need counts for count-based movement
+                reset_encoder()
                 target_left_pwm = left_pwm
                 target_right_pwm = right_pwm
         
