@@ -2,6 +2,7 @@ import socket
 import struct
 import io
 import threading
+import argparse
 import time
 from time import monotonic
 import RPi.GPIO as GPIO
@@ -521,4 +522,7 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--verbose', action='store_true') # Defaults to False
+    args = parser.parse_args()
     main()
