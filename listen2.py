@@ -182,7 +182,7 @@ def pid_control():
         elif (left_pwm < 0 and right_pwm < 0): current_movement = 'backward'
         elif (left_pwm == 0 and right_pwm == 0): current_movement = 'stop'
         elif (left_pwm > 0 and right_pwm < 0): current_movement = 'clockwise'
-        elss: current_movement = 'anticlockwise'
+        else: current_movement = 'anticlockwise'
         
         if not use_PID:
             target_left_pwm = left_pwm
