@@ -298,6 +298,12 @@ def camera_stream_server():
             print(f"Camera stream client connected")
             
             while running:
+            
+                # Wait for client to request a frame ("ready" signal = 1 byte)
+                ready = client_socket.recv(1)
+                if not ready:
+                    break
+                
                 # Capture frame and convert to bytes
                 stream = io.BytesIO()
                 picam2.capture_file(stream, format='jpeg')
@@ -437,6 +443,7 @@ def wheel_server():
                                 right_pwm = 0
                                 print(f"Timed movement completed after {elapsed_time:.2f}s")
                                 break
+                            time.sleep(0.02)
                         
                         # Send encoder counts back as acknowledgement
                         response = struct.pack("!ii", left_count, right_count)
@@ -463,6 +470,7 @@ def wheel_server():
                                 right_pwm = 0
                                 print(f"Encoder-based movement completed at L/R enc: {target_left_enc}, {target_right_enc}")
                                 break
+                            time.sleep(0.02)
                         
                         # Send encoder counts back as acknowledgement
                         response = struct.pack("!ii", left_count, right_count)
