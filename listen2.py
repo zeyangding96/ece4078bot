@@ -367,8 +367,7 @@ def wheel_server():
                         
                         # Unpack speed values and convert to PWM
                         left_speed, right_speed = struct.unpack("!ff", data)
-                        print(f"Received Mode 0")
-                        print(f"L/R speed: {left_speed:.4f}, {right_speed:.4f}")
+                        print(f"Received Mode 0 with L/R speed: {left_speed:.4f}, {right_speed:.4f}")
                         left_pwm, right_pwm = left_speed*100, right_speed*100
                     
                     elif move_mode == 1:
@@ -380,8 +379,7 @@ def wheel_server():
                         
                         # Unpack speed values and convert to PWM
                         left_speed, right_speed, duration = struct.unpack("!fff", data)
-                        print(f"Received Mode 1")
-                        print(f"L/R speed: {left_speed:.4f}, {right_speed:.4f}, Duration: {duration:.2f}s")
+                        print(f"Received Mode 1 with L/R speed: {left_speed:.4f}, {right_speed:.4f}, Duration: {duration:.2f}s")
                         left_pwm, right_pwm = left_speed*100, right_speed*100
                         
                         # Monitor movement duration
@@ -404,8 +402,7 @@ def wheel_server():
                         
                         # Unpack speed values and convert to PWM
                         left_speed, right_speed, target_left_enc, target_right_enc = struct.unpack("!ffii", data)
-                        print(f"Received Mode 2")
-                        print(f"L/R speed: {left_speed:.4f}, {right_speed:.4f}, L/R enc: {target_left_enc}, {target_right_enc}")
+                        print(f"Received Mode 2 with L/R speed: {left_speed:.4f}, {right_speed:.4f}, L/R enc: {target_left_enc}, {target_right_enc}")
                         left_pwm, right_pwm = left_speed*100, right_speed*100
                         
                         # Monitor movement duration
