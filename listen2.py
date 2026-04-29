@@ -26,7 +26,7 @@ RIGHT_ENCODER = 16
 
 # PID Constants (default values, will be overridden by client)
 use_PID = 0
-KP, Ki, KD = 0, 0, 0
+KP, KI, KD = 0, 0, 0
 MAX_CORRECTION = 30  # Maximum PWM correction value
 
 # Global variables
@@ -34,12 +34,11 @@ running = True
 left_pwm, right_pwm = 0, 0
 left_count, right_count = 0, 0
 prev_left_state, prev_right_state = None, None
-use_ramping = False
-RAMP_RATE = 250  # PWM units per second (adjust this value to tune ramp speed)
-MIN_RAMP_THRESHOLD = 15  # Only ramp if change is greater than this
 MIN_PWM_THRESHOLD = 15
 current_movement, prev_movement = 'stop', 'stop'
+
 # Global frame buffer
+# Should also have buffer for encoder count and PWM, but they are small in size so should be ok
 latest_frame_data = None
 frame_lock = threading.Lock()
 
@@ -72,6 +71,7 @@ def setup_gpio():
     left_motor_pwm.start(0)
     right_motor_pwm.start(0)
 
+
 def left_encoder_callback(channel):
     global left_count, prev_left_state
     current_state = GPIO.input(LEFT_ENCODER)
@@ -80,11 +80,10 @@ def left_encoder_callback(channel):
     # After testing, debouncing not needed
     if (prev_left_state is not None and current_state != prev_left_state):       
         left_count += 1
-        prev_left_state = current_state
-    
+        prev_left_state = current_state 
     elif prev_left_state is None:
-        # First reading
-        prev_left_state = current_state
+        prev_left_state = current_state # First reading
+
 
 def right_encoder_callback(channel):
     global right_count, prev_right_state, prev_right_time
@@ -93,19 +92,20 @@ def right_encoder_callback(channel):
     if (prev_right_state is not None and current_state != prev_right_state): 
         right_count += 1
         prev_right_state = current_state
-        
     elif prev_right_state is None:
         prev_right_state = current_state
-    
+
+
 def reset_encoder():
     global left_count, right_count
     left_count, right_count = 0, 0
 
+
 def set_motors(left, right):
     global prev_movement, current_movement
     
-    # Pre-Start Kick (Motor Priming), to reduce initial jerk and slight orientation change
-    if prev_movement == 'stop' and current_movement in ['forward', 'backward']:
+    # Pre-Start Kick (Motor Priming), to reduce initial jerk and slight orientation change when movement starts
+    if prev_movement == 'stop':
         if current_movement  == 'forward':
             GPIO.output(RIGHT_MOTOR_IN1, GPIO.HIGH)
             GPIO.output(RIGHT_MOTOR_IN2, GPIO.LOW)
@@ -116,10 +116,22 @@ def set_motors(left, right):
             GPIO.output(RIGHT_MOTOR_IN2, GPIO.HIGH)
             GPIO.output(LEFT_MOTOR_IN3, GPIO.LOW)
             GPIO.output(LEFT_MOTOR_IN4, GPIO.HIGH)
+        elif current_movement == 'clockwise':
+            GPIO.output(RIGHT_MOTOR_IN1, GPIO.LOW)
+            GPIO.output(RIGHT_MOTOR_IN2, GPIO.HIGH)
+            GPIO.output(LEFT_MOTOR_IN3, GPIO.HIGH)
+            GPIO.output(LEFT_MOTOR_IN4, GPIO.LOW)
+        elif current_movement == 'anticlockwise':
+            GPIO.output(RIGHT_MOTOR_IN1, GPIO.HIGH)
+            GPIO.output(RIGHT_MOTOR_IN2, GPIO.LOW)
+            GPIO.output(LEFT_MOTOR_IN3, GPIO.LOW)
+            GPIO.output(LEFT_MOTOR_IN4, GPIO.HIGH)
+        
         left_motor_pwm.ChangeDutyCycle(80)
         right_motor_pwm.ChangeDutyCycle(80)
         time.sleep(0.05)
-
+    
+    # Set the desired PWM
     if right > 0:
         GPIO.output(RIGHT_MOTOR_IN1, GPIO.HIGH)
         GPIO.output(RIGHT_MOTOR_IN2, GPIO.LOW)
@@ -152,29 +164,18 @@ def apply_min_threshold(pwm_value, min_threshold):
     if pwm_value == 0:
         return 0  # Zero means stop
     elif abs(pwm_value) < min_threshold:
-        # Boost small values to minimum threshold, preserving direction
-        return min_threshold if pwm_value > 0 else -min_threshold
+        return min_threshold if pwm_value > 0 else -min_threshold # Boost small values to minimum threshold, preserving direction
     else:
         return pwm_value
 
+
 def pid_control():
-    '''
-    This function sets the motor pwm using pid control with ramping logic
-    pid only applies for forward and backward movement, not turning
-    Variable change in this function: left/right pwm -> target left/right pwm -> ramp left/right pwm -> final left/right pwm
-    '''
+    '''This function sets the motor pwm using pid control'''
     global left_pwm, right_pwm, left_count, right_count, use_PID, KP, KI, KD, prev_movement, current_movement
     
     integral = 0
     last_error = 0
     last_time = monotonic()
-    
-    # Ramping variables & params
-    ramp_left_pwm = 0
-    ramp_right_pwm = 0
-    previous_left_target = 0
-    previous_right_target = 0
-    
     while running:          
         current_time = monotonic()
         dt = current_time - last_time
@@ -214,83 +215,25 @@ def pid_control():
                     target_left_pwm = left_pwm + correction
                     target_right_pwm = right_pwm + correction
             else:
-                # Reset when stopped or turning
+                # Reset when stopped
                 integral = 0
                 last_error = 0
                 reset_encoder()
                 target_left_pwm = left_pwm
                 target_right_pwm = right_pwm
-        
-        if use_ramping and use_PID:
-            # PWM Ramping Logic
-            max_change_per_cycle = RAMP_RATE * dt
             
-            # Calculate differences for both motors
-            left_diff = target_left_pwm - ramp_left_pwm
-            right_diff = target_right_pwm - ramp_right_pwm
-            
-            # Determine if either motor needs ramping
-            left_needs_ramp = abs(left_diff) > MIN_RAMP_THRESHOLD
-            right_needs_ramp = abs(right_diff) > MIN_RAMP_THRESHOLD
-            
-            # Check for direction change conditions (but not stops)
-            left_direction_change = (target_left_pwm * previous_left_target < 0) and target_left_pwm != 0 and previous_left_target != 0
-            right_direction_change = (target_right_pwm * previous_right_target < 0) and target_right_pwm != 0 and previous_right_target != 0
-            
-            # Apply immediate changes for direction changes only (for safety)
-            if left_direction_change:
-                ramp_left_pwm = target_left_pwm
-            if right_direction_change:
-                ramp_right_pwm = target_right_pwm
-            
-            # Synchronized ramping - both motors ramp together or not at all
-            if not left_direction_change and not right_direction_change:
-                if left_needs_ramp or right_needs_ramp:
-                    
-                    # Left motor ramping (including ramp-down to zero)
-                    if abs(left_diff) <= max_change_per_cycle:
-                        ramp_left_pwm = target_left_pwm  # Close enough, set to target
-                    else:
-                        # Ramp towards target (up or down)
-                        if left_diff > 0:
-                            ramp_left_pwm += max_change_per_cycle
-                        else:
-                            ramp_left_pwm -= max_change_per_cycle
-                    
-                    # Right motor ramping (including ramp-down to zero)
-                    if abs(right_diff) <= max_change_per_cycle:
-                        ramp_right_pwm = target_right_pwm  # Close enough, set to target
-                    else:
-                        # Ramp towards target (up or down)
-                        if right_diff > 0:
-                            ramp_right_pwm += max_change_per_cycle
-                        else:
-                            ramp_right_pwm -= max_change_per_cycle
-                else:
-                    # Neither motor needs ramping - apply targets directly
-                    ramp_left_pwm = target_left_pwm
-                    ramp_right_pwm = target_right_pwm
-            
-            # Store previous targets for next iteration
-            previous_left_target = target_left_pwm
-            previous_right_target = target_right_pwm
-        
-        else:
-            # Ramping disabled - apply target values directly
-            ramp_left_pwm = target_left_pwm
-            ramp_right_pwm = target_right_pwm
-            
-        final_left_pwm = apply_min_threshold(ramp_left_pwm, MIN_PWM_THRESHOLD)
-        final_right_pwm = apply_min_threshold(ramp_right_pwm, MIN_PWM_THRESHOLD)
+        final_left_pwm = apply_min_threshold(target_left_pwm, MIN_PWM_THRESHOLD)
+        final_right_pwm = apply_min_threshold(target_right_pwm, MIN_PWM_THRESHOLD)
         set_motors(final_left_pwm, final_right_pwm)
         
-        if ramp_left_pwm != 0 and args.verbose: # print pwm values for debugging purpose
-            print(f"L/R PWM: ({ramp_left_pwm:.2f},{ramp_right_pwm:.2f}), L/R Enc: ({left_count}, {right_count})")
+        if target_left_pwm != 0 and args.verbose: # print pwm values for debugging purpose
+            print(f"L/R PWM: ({target_left_pwm:.2f},{target_right_pwm:.2f}), L/R Enc: ({left_count}, {right_count})")
         
         time.sleep(0.01)
-        
+
+       
 def camera_capture():
-    """Continuously capture frames (runs in background)"""
+    '''Continuously capture frames (runs in background)'''
     picam2 = Picamera2()
     camera_config = picam2.create_preview_configuration(lores={"size": (640,480)})
     picam2.configure(camera_config)
@@ -302,22 +245,13 @@ def camera_capture():
         picam2.capture_file(stream, format='jpeg')
         stream.seek(0)
         jpeg_data = stream.getvalue()
-        
-        with frame_lock:
-            latest_frame_data = jpeg_data
-        
+        with frame_lock: latest_frame_data = jpeg_data 
         time.sleep(0.01)  # ~100fps capture rate
     
     picam2.stop()
 
 
 def camera_stream_server():
-    # Initialize camera
-    #picam2 = Picamera2()
-    #camera_config = picam2.create_preview_configuration(lores={"size": (640,480)})
-    #picam2.configure(camera_config)
-    #picam2.start()
-    
     # Create socket for streaming
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -329,37 +263,20 @@ def camera_stream_server():
         try:
             client_socket, _ = server_socket.accept()
             print(f"Camera stream client connected")
-            
             while running:
-            
                 # Wait for client to request a frame ("ready" signal = 1 byte)
                 ready = client_socket.recv(1)
-                if not ready:
-                    break
-                
-                # Capture frame and convert to bytes
-                #stream = io.BytesIO()
-                #picam2.capture_file(stream, format='jpeg')
-                #stream.seek(0)
-                #jpeg_data = stream.getvalue()
-                #jpeg_size = len(jpeg_data)
+                if not ready: break
                 
                 # Send latest captured frame
                 with frame_lock:
-                    if latest_frame_data:
-                        jpeg_data = latest_frame_data
-                    else:
-                        continue
+                    jpeg_data = latest_frame_data
                 jpeg_size = len(jpeg_data)
                 try:
-                    client_socket.sendall(struct.pack("!I", jpeg_size))
-                    client_socket.sendall(jpeg_data)
+                    client_socket.sendall(struct.pack("!I", jpeg_size) + jpeg_data)
                 except:
                     print("Camera stream client disconnected")
                     break
-                
-                # Small delay to avoid hogging CPU
-                time.sleep(0.01)
                 
         except Exception as e:
             print(f"Camera stream server error: {str(e)}")
@@ -436,12 +353,10 @@ def wheel_server():
                 try:
                     # Receive move_mode (1 byte)
                     move_mode = client_socket.recv(1)
-                    
                     if not move_mode or len(move_mode) != 1:
                         print("Wheel client sending error")
                         break
                     move_mode = struct.unpack("!B", move_mode)[0]
-                    
                     
                     if move_mode == 0:
                         # Receive speed data (4 byte each)
@@ -455,10 +370,6 @@ def wheel_server():
                         print(f"Received Mode 0")
                         print(f"L/R speed: {left_speed:.4f}, {right_speed:.4f}")
                         left_pwm, right_pwm = left_speed*100, right_speed*100
-                        
-                        # Send encoder counts back as acknowledgement
-                        response = struct.pack("!ii", left_count, right_count)
-                        client_socket.sendall(response)
                     
                     elif move_mode == 1:
                         # Receive speed and duration (4 byte each)
@@ -478,16 +389,11 @@ def wheel_server():
                         while running:
                             elapsed_time = monotonic() - autonomous_start_time
                             if elapsed_time >= duration:
-                                # Time expired, stop movement
                                 left_pwm = 0
                                 right_pwm = 0
                                 print(f"Timed movement completed after {elapsed_time:.2f}s")
                                 break
                             time.sleep(0.02)
-                        
-                        # Send encoder counts back as acknowledgement
-                        response = struct.pack("!ii", left_count, right_count)
-                        client_socket.sendall(response)
                     
                     elif move_mode == 2:
                         # Receive speed and encoder count (4 byte each)
@@ -505,16 +411,15 @@ def wheel_server():
                         # Monitor movement duration
                         while running:
                             if left_count >= target_left_enc and right_count >= target_right_enc:
-                                # Time expired, stop movement
                                 left_pwm = 0
                                 right_pwm = 0
                                 print(f"Encoder-based movement completed at L/R enc: {target_left_enc}, {target_right_enc}")
                                 break
                             time.sleep(0.02)
                         
-                        # Send encoder counts back as acknowledgement
-                        response = struct.pack("!ii", left_count, right_count)
-                        client_socket.sendall(response)
+                    # Send encoder counts back as acknowledgement for all modes
+                    response = struct.pack("!ii", left_count, right_count)
+                    client_socket.sendall(response)
                     
                 except Exception as e:
                     print(f"Wheel client disconnected")
@@ -538,7 +443,7 @@ def main():
         pid_thread.daemon = True
         pid_thread.start()
         
-        # Start camera streaming thread
+        # Start camera capture thread
         camera_capture_thread = threading.Thread(target=camera_capture)
         camera_capture_thread.daemon = True
         camera_capture_thread.start()
@@ -558,6 +463,7 @@ def main():
         
     except KeyboardInterrupt:
         print("Stopping...")
+    
     finally:
         global running
         running = False
@@ -568,6 +474,5 @@ def main():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', action='store_true') # Defaults to False
-    parser.add_argument('--disable_ramping', action='store_false') # Defaults to True
     args = parser.parse_args()
     main()
