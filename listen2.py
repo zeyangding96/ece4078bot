@@ -388,6 +388,7 @@ def wheel_server():
                         autonomous_start_time = monotonic()
                         while running:
                             elapsed_time = monotonic() - autonomous_start_time
+                            print(elapsed_time)
                             if elapsed_time >= duration:
                                 left_pwm = 0
                                 right_pwm = 0
