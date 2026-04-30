@@ -235,7 +235,7 @@ def pid_control():
 def camera_capture():
     '''Continuously capture frames (runs in background)'''
     picam2 = Picamera2()
-    camera_config = picam2.create_preview_configuration(lores={"size": (640,480)})
+    camera_config = picam2.create_preview_configuration(lores={"size": (480,360)})
     picam2.configure(camera_config)
     picam2.start()
     
