@@ -186,7 +186,7 @@ def pid_control():
         else: current_movement = 'anticlockwise'
         
         # if current_movement == 'stop':
-            Reset state once on transition, then sleep longer
+            ##Reset state once on transition, then sleep longer
             # if prev_movement != 'stop':
                 # print('hi')
                 # integral = 0
