@@ -227,8 +227,10 @@ def pid_control():
                 integral = 0
                 last_error = 0
                 reset_encoder()
-                target_left_pwm = left_pwm
-                target_right_pwm = right_pwm
+                target_left_pwm, target_right_pwm = 0, 0
+                set_motors(0,0)
+                time.sleep(0.1) # sleep longer when robot is not moving / idle, save battery
+                continue
             
         final_left_pwm = apply_min_threshold(target_left_pwm, MIN_PWM_THRESHOLD)
         final_right_pwm = apply_min_threshold(target_right_pwm, MIN_PWM_THRESHOLD)
