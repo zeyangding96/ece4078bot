@@ -185,22 +185,12 @@ def pid_control():
         elif (left_pwm > 0 and right_pwm < 0): current_movement = 'clockwise'
         else: current_movement = 'anticlockwise'
         
-        # if current_movement == 'stop':
-            ##Reset state once on transition, then sleep longer
-            # if prev_movement != 'stop':
-                # print('hi')
-                # integral = 0
-                # last_error = 0
-                # reset_encoder()
-                # set_motors(0, 0)
-            # time.sleep(0.1)  # 10Hz instead of 100Hz when idle
-            # continue
-        
         if not use_PID:
             target_left_pwm = left_pwm
             target_right_pwm = right_pwm
         else:
             if current_movement != 'stop':
+                print('working')
                 error = left_count - right_count
                 proportional = KP * error
                 integral += KI * error * dt
@@ -224,6 +214,7 @@ def pid_control():
                     target_right_pwm = right_pwm + correction
             else:
                 # Reset when stopped
+                print('idle')
                 integral = 0
                 last_error = 0
                 reset_encoder()
