@@ -172,7 +172,8 @@ def pid_control():
     integral = 0
     last_error = 0
     last_time = monotonic()
-    while running:          
+    while running:
+        print('ddddd')
         current_time = monotonic()
         dt = current_time - last_time
         last_time = current_time
@@ -184,16 +185,16 @@ def pid_control():
         elif (left_pwm > 0 and right_pwm < 0): current_movement = 'clockwise'
         else: current_movement = 'anticlockwise'
         
-        if current_movement == 'stop' and prev_movement:
-            # Reset state once on transition, then sleep longer
-            if prev_movement != 'stop':
-                print('hi')
-                integral = 0
-                last_error = 0
-                reset_encoder()
-                set_motors(0, 0)
-            time.sleep(0.1)  # 10Hz instead of 100Hz when idle
-            continue
+        # if current_movement == 'stop':
+            Reset state once on transition, then sleep longer
+            # if prev_movement != 'stop':
+                # print('hi')
+                # integral = 0
+                # last_error = 0
+                # reset_encoder()
+                # set_motors(0, 0)
+            # time.sleep(0.1)  # 10Hz instead of 100Hz when idle
+            # continue
         
         if not use_PID:
             target_left_pwm = left_pwm
@@ -258,6 +259,7 @@ def camera_stream_server():
             client_socket, _ = server_socket.accept()
             print(f"Camera stream client connected")
             while running:
+                print('ccccc')
                 # Wait for client to request a frame ("ready" signal = 1 byte)
                 ready = client_socket.recv(1)
                 if not ready: break
@@ -301,6 +303,7 @@ def pid_config_server():
             print(f"PID config client connected")
             
             try:
+                print('bbbbb')
                 # Receive PID constants (4 floats)
                 data = client_socket.recv(16)
                 if data and len(data) == 16:
@@ -348,6 +351,7 @@ def wheel_server():
             
             while running:
                 try:
+                    print('aaaaa')
                     # Receive move_mode (1 byte)
                     move_mode = client_socket.recv(1)
                     if not move_mode or len(move_mode) != 1:
