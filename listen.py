@@ -189,7 +189,6 @@ def pid_control():
             target_right_pwm = right_pwm
         else:
             if current_movement != 'stop':
-                print('working')
                 error = left_count - right_count
                 proportional = KP * error
                 integral += KI * error * dt
