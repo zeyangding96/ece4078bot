@@ -37,10 +37,6 @@ prev_left_state, prev_right_state = None, None
 MIN_PWM_THRESHOLD = 15
 current_movement, prev_movement = 'stop', 'stop'
 
-# Global frame buffer
-# Should also have buffer for encoder count and PWM, but they are small in size so should be ok
-latest_frame_data = None
-frame_lock = threading.Lock()
 
 def setup_gpio():
     GPIO.setmode(GPIO.BCM)
@@ -231,27 +227,14 @@ def pid_control():
         
         time.sleep(0.01)
 
-       
-def camera_capture():
-    '''Continuously capture frames (runs in background)'''
+
+def camera_stream_server():
+    # initialize camera
     picam2 = Picamera2()
     camera_config = picam2.create_preview_configuration(lores={"size": (480,360)})
     picam2.configure(camera_config)
     picam2.start()
     
-    global latest_frame_data
-    while running:
-        stream = io.BytesIO()
-        picam2.capture_file(stream, format='jpeg')
-        stream.seek(0)
-        jpeg_data = stream.getvalue()
-        with frame_lock: latest_frame_data = jpeg_data 
-        time.sleep(0.01)  # ~100fps capture rate
-    
-    picam2.stop()
-
-
-def camera_stream_server():
     # Create socket for streaming
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -268,15 +251,18 @@ def camera_stream_server():
                 ready = client_socket.recv(1)
                 if not ready: break
                 
-                # Send latest captured frame
-                with frame_lock:
-                    jpeg_data = latest_frame_data
+                stream = io.BytesIO()
+                picam2.capture_file(stream, format='jpeg')
+                stream.seek(0)
+                jpeg_data = stream.getvalue()
                 jpeg_size = len(jpeg_data)
                 try:
                     client_socket.sendall(struct.pack("!I", jpeg_size) + jpeg_data)
                 except:
                     print("Camera stream client disconnected")
                     break
+                
+                time.sleep(0.01)  # ~100fps capture rate
                 
         except Exception as e:
             print(f"Camera stream server error: {str(e)}")
@@ -439,11 +425,6 @@ def main():
         pid_thread = threading.Thread(target=pid_control)
         pid_thread.daemon = True
         pid_thread.start()
-        
-        # Start camera capture thread
-        camera_capture_thread = threading.Thread(target=camera_capture)
-        camera_capture_thread.daemon = True
-        camera_capture_thread.start()
         
         # Start camera streaming thread
         camera_thread = threading.Thread(target=camera_stream_server)
