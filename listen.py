@@ -25,7 +25,7 @@ LEFT_ENCODER = 26
 RIGHT_ENCODER = 16
 
 # PID Constants (default values, will be overridden by client)
-use_PID = 0
+use_PID = 1
 KP, KI, KD = 0, 0, 0
 MAX_CORRECTION = 30  # Maximum PWM correction value
 
