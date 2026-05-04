@@ -173,7 +173,6 @@ def pid_control():
     last_error = 0
     last_time = monotonic()
     while running:
-        print('ddddd')
         current_time = monotonic()
         dt = current_time - last_time
         last_time = current_time
@@ -214,11 +213,9 @@ def pid_control():
                     target_right_pwm = right_pwm + correction
             else:
                 # Reset when stopped
-                print('idle')
                 integral = 0
                 last_error = 0
                 reset_encoder()
-                target_left_pwm, target_right_pwm = 0, 0
                 set_motors(0,0)
                 time.sleep(0.1) # sleep longer when robot is not moving / idle, save battery
                 continue
@@ -252,7 +249,6 @@ def camera_stream_server():
             client_socket, _ = server_socket.accept()
             print(f"Camera stream client connected")
             while running:
-                print('ccccc')
                 # Wait for client to request a frame ("ready" signal = 1 byte)
                 ready = client_socket.recv(1)
                 if not ready: break
@@ -267,8 +263,6 @@ def camera_stream_server():
                 except:
                     print("Camera stream client disconnected")
                     break
-                
-                time.sleep(0.01)  # ~100fps capture rate
                 
         except Exception as e:
             print(f"Camera stream server error: {str(e)}")
@@ -296,7 +290,6 @@ def pid_config_server():
             print(f"PID config client connected")
             
             try:
-                print('bbbbb')
                 # Receive PID constants (4 floats)
                 data = client_socket.recv(16)
                 if data and len(data) == 16:
@@ -344,7 +337,6 @@ def wheel_server():
             
             while running:
                 try:
-                    print('aaaaa')
                     # Receive move_mode (1 byte)
                     move_mode = client_socket.recv(1)
                     if not move_mode or len(move_mode) != 1:
