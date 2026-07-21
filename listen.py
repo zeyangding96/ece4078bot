@@ -391,11 +391,18 @@ def wheel_server():
                         left_pwm, right_pwm = left_speed*100, right_speed*100
                         
                         # Monitor movement duration
+                        autonomous_start_time = monotonic()
                         while running:
+                            elapsed_time = monotonic() - autonomous_start_time
                             if left_count >= target_left_enc and right_count >= target_right_enc:
                                 left_pwm = 0
                                 right_pwm = 0
                                 print(f"Encoder-based movement completed at L/R enc: {target_left_enc}, {target_right_enc}")
+                                break
+                            elif elapsed_time >= 8: # safety after 8s
+                                left_pwm = 0
+                                right_pwm = 0
+                                print(f"Encoder-based movement failed.")
                                 break
                             time.sleep(0.02)
                         
